@@ -12,45 +12,55 @@ static const int window_w_init = 700;
 static const int window_h_init = 700;
 static const sf::Color clock_face_color(255, 255, 255, 192);
 static const sf::Color bgnd_color(16, 16, 16);
-enum ClockType {
-  HM, MS, ST, HMS, MST, HMST, CLOCK_NUM
-};
 enum TimeType {
   REG, REG_24, SEN_3, SEN_4, DEC, DOZ, HEX, CRT, TIME_NUM
 };
-static const char* clock_type_name[] = {
-  "[M] Hours, Minutes",
-  "[M] Minutes, Seconds",
-  "[M] Seconds, Ticks",
-  "[M] Hours, Minutes, Seconds",
-  "[M] Minutes, Seconds, Ticks",
-  "[M] Hrs, Mins, Secs, Ticks",
+static const float time_offset_modes[] = {
+  5.0f, 60.0f, 300.0f, 3600.0f
+};
+static const char* show_hands_name[] = {
+  "[1-3] Show/Hide clock hands",
+  "[1-4] Show/Hide clock hands",
 };
 static const char* time_type_name[] = {
-  "[N] Regular Clock",
-  "[N] 24-hour Clock",
-  "[N] Heximal Clock",
-  "[N] Heximal Clock (4 hands)",
-  "[N] Decimal Clock",
-  "[N] Dozenal Clock",
-  "[N] Hexadecimal Clock",
-  "[N] Creata Standard Time",
+  "[M] Regular clock",
+  "[M] 24-hour clock",
+  "[M] Heximal clock",
+  "[M] Heximal clock (4 hands)",
+  "[M] Decimal clock",
+  "[M] Dozenal clock",
+  "[M] Hexadecimal clock",
+  "[M] Creata Standard Time",
 };
-static const char* realtime_name[] = {
+static const char* time_offset_name[] = {
+  "[+/-] Offset time by 5 seconds",
+  "[+/-] Offset time by 1 minute",
+  "[+/-] Offset time by 5 minutes",
+  "[+/-] Offset time by 1 hour",
+};
+static const char* change_offset_name = "[Shift/Ctrl] Offset faster";
+static const char* reset_offset_name = "[0] Reset time offset";
+static const char* pause_time_name[] = {
+  "[P] Pause time",
+  "[P] Resume time",
+};
+static const char* real_time_name[] = {
   "[R] Timer",
+  "[R] Timer (offset)",
   "[R] Real-time",
+  "[R] Real-time (offset)",
 };
 static const char* tick_name[] = {
-  "[T] Smooth Time",
-  "[T] Tick Time",
+  "[T] Smooth time",
+  "[T] Tick time",
 };
 static const char* draw_branches_name[] = {
-  "[B] Hide Branches",
-  "[B] Draw Branches",
+  "[B] Hide branches",
+  "[B] Draw branches",
 };
 static const char* draw_clock_name[] = {
-  "[C] Hide Clock",
-  "[C] Draw Clock",
+  "[C] Hide clock",
+  "[C] Draw clock",
 };
 static const char* toggle_fullscreen_name[] = {
   "[F11] Full screen",
@@ -67,15 +77,24 @@ static float ratioH = 0.5f;
 static float ratioM = std::sqrt(1.0f / 2.0f);
 static float ratioS = std::sqrt(1.0f / 2.0f);
 static float ratioT = std::sqrt(1.0f / 2.0f);
+static float real_time = 0.0f;
+static float shown_time = 0.0f;
+static float paused_time = 0.0f;
+static float pause_offset = 0.0f;
+static float time_offset = 0.0f;
+static int time_offset_mode = 0;
 static sf::Color color_scheme[max_iters];
 static bool toggle_fullscreen = false;
 
 #pragma warning(disable:26812)
-static ClockType clock_type = ClockType::HMS;
-static ClockType old_clock_type = clock_type;
 static TimeType time_type = TimeType::REG;
 #pragma warning(default:26812)
-static bool use_realtime = true;
+static bool show_hours = true;
+static bool show_minutes = true;
+static bool show_seconds = true;
+static bool show_ticks = true;
+static bool pause_time = false;
+static bool use_real_time = true;
 static bool use_tick = false;
 static bool draw_branches = true;
 static bool draw_clock = true;
@@ -151,46 +170,62 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   sf::Text clock_num;
   clock_num.setFont(font);
   clock_num.setFillColor(clock_face_color);
+
   sf::Text show_shortcuts_text;
   show_shortcuts_text.setFont(font);
   show_shortcuts_text.setFillColor(clock_face_color);
   show_shortcuts_text.setCharacterSize(22);
   show_shortcuts_text.setPosition(10, 10);
-  sf::Text clock_type_text;
-  clock_type_text.setFont(font);
-  clock_type_text.setFillColor(clock_face_color);
-  clock_type_text.setCharacterSize(22);
-  clock_type_text.setPosition(10, 40);
-  sf::Text time_type_text;
-  time_type_text.setFont(font);
-  time_type_text.setFillColor(clock_face_color);
-  time_type_text.setCharacterSize(22);
-  time_type_text.setPosition(10, 70);
-  sf::Text realtime_text;
-  realtime_text.setFont(font);
-  realtime_text.setFillColor(clock_face_color);
-  realtime_text.setCharacterSize(22);
-  realtime_text.setPosition(10, 100);
+  sf::Text real_time_text;
+  real_time_text.setFont(font);
+  real_time_text.setFillColor(clock_face_color);
+  real_time_text.setCharacterSize(22);
+  real_time_text.setPosition(10, 40);
   sf::Text tick_text;
   tick_text.setFont(font);
   tick_text.setFillColor(clock_face_color);
   tick_text.setCharacterSize(22);
-  tick_text.setPosition(10, 130);
+  tick_text.setPosition(10, 70);
   sf::Text draw_branches_text;
   draw_branches_text.setFont(font);
   draw_branches_text.setFillColor(clock_face_color);
   draw_branches_text.setCharacterSize(22);
-  draw_branches_text.setPosition(10, 160);
+  draw_branches_text.setPosition(10, 100);
   sf::Text draw_clock_text;
   draw_clock_text.setFont(font);
   draw_clock_text.setFillColor(clock_face_color);
   draw_clock_text.setCharacterSize(22);
-  draw_clock_text.setPosition(10, 190);
+  draw_clock_text.setPosition(10, 130);
   sf::Text toggle_fullscreen_text;
   toggle_fullscreen_text.setFont(font);
   toggle_fullscreen_text.setFillColor(clock_face_color);
   toggle_fullscreen_text.setCharacterSize(22);
-  toggle_fullscreen_text.setPosition(10, 220);
+  toggle_fullscreen_text.setPosition(10, 160);
+
+  sf::Text time_type_text;
+  time_type_text.setFont(font);
+  time_type_text.setFillColor(clock_face_color);
+  time_type_text.setCharacterSize(22);
+  sf::Text show_hands_text;
+  show_hands_text.setFont(font);
+  show_hands_text.setFillColor(clock_face_color);
+  show_hands_text.setCharacterSize(22);
+  sf::Text time_offset_text;
+  time_offset_text.setFont(font);
+  time_offset_text.setFillColor(clock_face_color);
+  time_offset_text.setCharacterSize(22);
+  sf::Text change_offset_text;
+  change_offset_text.setFont(font);
+  change_offset_text.setFillColor(clock_face_color);
+  change_offset_text.setCharacterSize(22);
+  sf::Text reset_offset_text;
+  reset_offset_text.setFont(font);
+  reset_offset_text.setFillColor(clock_face_color);
+  reset_offset_text.setCharacterSize(22);
+  sf::Text pause_time_text;
+  pause_time_text.setFont(font);
+  pause_time_text.setFillColor(clock_face_color);
+  pause_time_text.setCharacterSize(22);
 
   //Create the window
   sf::VideoMode screenSize = sf::VideoMode(window_w_init, window_h_init, 24);
@@ -204,6 +239,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
   clock.restart();
   while (window.isOpen())
   {
+    float time_offset_delta = 0.0f;
     sf::Event event;
     while (window.pollEvent(event))
     {
@@ -212,8 +248,13 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         window.close();
         break;
       }
+      else if (event.type == sf::Event::KeyReleased)
+      {
+        time_offset_mode = 1 * event.key.shift + 2 * event.key.control;
+      }
       else if (event.type == sf::Event::KeyPressed)
       {
+        time_offset_mode = 1 * event.key.shift + 2 * event.key.control;
         #pragma warning(disable:26812)
         const sf::Keyboard::Key keycode = event.key.code;
         #pragma warning(default:26812)
@@ -222,18 +263,34 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
           window.close();
           break;
         }
-        else if (keycode == sf::Keyboard::M) {
-          clock_type = ClockType((clock_type + 1) % ClockType::CLOCK_NUM);
-          if (time_type != SEN_4 && time_type != DOZ && time_type != HEX)
-            while (clock_type == ClockType::HMST || clock_type == ClockType::MST || clock_type == ClockType::ST)
-              clock_type = ClockType((clock_type + 1) % ClockType::CLOCK_NUM);
-          old_clock_type = clock_type;
+        else if (keycode == sf::Keyboard::Num1 || keycode == sf::Keyboard::Numpad1)
+          show_hours = !show_hours;
+        else if (keycode == sf::Keyboard::Num2 || keycode == sf::Keyboard::Numpad2)
+          show_minutes = !show_minutes;
+        else if (keycode == sf::Keyboard::Num3 || keycode == sf::Keyboard::Numpad3)
+          show_seconds = !show_seconds;
+        else if (keycode == sf::Keyboard::Num4 || keycode == sf::Keyboard::Numpad4)
+          show_ticks = !show_ticks;
+        else if (keycode == sf::Keyboard::Num0 || keycode == sf::Keyboard::Numpad0)
+        {
+          paused_time = real_time;
+          time_offset = 0;
+          pause_offset = 0;
         }
-        else if (keycode == sf::Keyboard::N)
+        else if (keycode == sf::Keyboard::Equal || keycode == sf::Keyboard::Add)
+          time_offset += time_offset_modes[time_offset_mode];
+        else if (keycode == sf::Keyboard::Hyphen || keycode == sf::Keyboard::Subtract)
+          time_offset -= time_offset_modes[time_offset_mode];
+        else if (keycode == sf::Keyboard::P)
+          pause_time = !pause_time;
+        else if (keycode == sf::Keyboard::M)
           time_type = TimeType((time_type + 1) % TimeType::TIME_NUM);
         else if (keycode == sf::Keyboard::R)
         {
-          use_realtime = !use_realtime;
+          use_real_time = !use_real_time;
+          pause_time = false;
+          time_offset = 0;
+          pause_offset = 0;
           clock.restart();
         }
         else if (keycode == sf::Keyboard::T)
@@ -246,23 +303,6 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
           toggle_fullscreen = true;
         else if (keycode == sf::Keyboard::K)
           show_shortcuts = !show_shortcuts;
-
-        //Save state of clock if the new one does not have ticks (4th hand) 
-        if (time_type != SEN_4 && time_type != DOZ && time_type != HEX)
-        {
-          if (clock_type == ClockType::HMST)
-          {
-            old_clock_type = clock_type;
-            clock_type = ClockType::HMS;
-          }
-          else if (clock_type == ClockType::MST || clock_type == ClockType::ST)
-          {
-            old_clock_type = clock_type;
-            clock_type = ClockType::MS;
-          }
-        }
-        else
-          clock_type = old_clock_type;
       }
       else if (event.type == sf::Event::Resized)
       {
@@ -272,16 +312,107 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       }
     }
 
+    //Initialize all variables that change between timekeeping systems
+    float secondsPerFullCycle, secondsPerNewHour, secondsPerNewMinute, secondsPerNewSecond, secondsPerNewTick, startOffset;
+    int numberAmount, linesBetweenNumbers;
+
+    switch (time_type) {
+    case REG:
+      secondsPerNewTick = 0.0f;
+      secondsPerNewSecond = 1.0f;
+      secondsPerNewMinute = 60.0f;
+      secondsPerNewHour = 3600.0f;
+      secondsPerFullCycle = 43200.0f;
+      startOffset = 0.0f;
+      numberAmount = 12;
+      linesBetweenNumbers = 5;
+      break;
+    case REG_24:
+      secondsPerNewTick = 0.0f;
+      secondsPerNewSecond = 1.0f;
+      secondsPerNewMinute = 60.0f;
+      secondsPerNewHour = 3600.0f;
+      secondsPerFullCycle = 86400.0f;
+      startOffset = PI;
+      numberAmount = 24;
+      linesBetweenNumbers = 5;
+      break;
+    case DEC:
+      secondsPerNewTick = 0.0f;
+      secondsPerNewSecond = 0.864f;
+      secondsPerNewMinute = 86.4f;
+      secondsPerNewHour = 8640.0f;
+      secondsPerFullCycle = 86400.0f;
+      startOffset = 0.0f;
+      numberAmount = 10;
+      linesBetweenNumbers = 10;
+      break;
+    case HEX:
+      secondsPerNewTick = 1.318359375f;
+      secondsPerNewSecond = 21.09375f;
+      secondsPerNewMinute = 337.5f;
+      secondsPerNewHour = 5400.0f;
+      secondsPerFullCycle = 86400.0f;
+      startOffset = 0.0f;
+      numberAmount = 16;
+      linesBetweenNumbers = 4;
+      break;
+    case CRT:
+      secondsPerNewTick = 0.0f;
+      secondsPerNewSecond = 0.32958984375f;
+      secondsPerNewMinute = 21.09375f;
+      secondsPerNewHour = 1350.0f;
+      secondsPerFullCycle = 43200.0f;
+      startOffset = 0.0f;
+      numberAmount = 16;
+      linesBetweenNumbers = 4;
+      break;
+    case DOZ:
+      secondsPerNewTick = 25.0f / 12.0f;
+      secondsPerNewSecond = 25.0f;
+      secondsPerNewMinute = 300.0f;
+      secondsPerNewHour = 3600.0f;
+      secondsPerFullCycle = 43200.0f;
+      startOffset = 0.0f;
+      numberAmount = 12;
+      linesBetweenNumbers = 4;
+      break;
+    case SEN_3:
+      secondsPerNewTick = 0.0f;
+      secondsPerNewSecond = 50.0f / 27.0f;
+      secondsPerNewMinute = 200.0f / 3.0f;
+      secondsPerNewHour = 2400.0f;
+      secondsPerFullCycle = 86400.0f;
+      startOffset = 0.0f;
+      numberAmount = 6;
+      linesBetweenNumbers = 6;
+      break;
+    case SEN_4:
+      secondsPerNewTick = 50.0f / 27.0f;
+      secondsPerNewSecond = 200.0f / 3.0f;
+      secondsPerNewMinute = 2400.0f;
+      secondsPerNewHour = 14400.0f;
+      secondsPerFullCycle = 86400.0f;
+      startOffset = 0.0f;
+      numberAmount = 6;
+      linesBetweenNumbers = 6;
+      break;
+    }
+
+    const int lineAmount = numberAmount * linesBetweenNumbers;
+    const bool hasTicks = secondsPerNewTick != 0.0f;
+
     //Calculate maximum iterations
     int iters = max_iters;
-    if (clock_type == ClockType::HMS || clock_type == ClockType::MST)
-        iters = max_iters - 3;
-    if (clock_type == ClockType::HMST)
-        iters = max_iters - 6;
+    const int handCount = int(show_hours) + int(show_minutes) + int(show_seconds) + int(hasTicks && show_ticks);
+    if (handCount == 3)
+      iters = max_iters - 3;
+    if (handCount == 4)
+      iters = max_iters - 6;
 
     //Get the time
-    float cur_time = 0.0f;
-    if (use_realtime)
+    real_time = 0.0f;
+    if (use_real_time)
     {
       FILETIME fileTime;
       SYSTEMTIME systemTime;
@@ -289,119 +420,44 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       GetSystemTimeAsFileTime(&fileTime);
       FileTimeToSystemTime(&fileTime, &systemTime);
       SystemTimeToTzSpecificLocalTime(NULL, &systemTime, &localTime);
-      cur_time = float(localTime.wMilliseconds) / 1000.0f;
-      cur_time += float(localTime.wSecond);
-      cur_time += float(localTime.wMinute) * 60.0f;
-      cur_time += float(localTime.wHour) * 3600.0f;
+      real_time = float(localTime.wMilliseconds) / 1000.0f;
+      real_time += float(localTime.wSecond);
+      real_time += float(localTime.wMinute) * 60.0f;
+      real_time += float(localTime.wHour) * 3600.0f;
     }
     else
-      cur_time = clock.getElapsedTime().asSeconds();
+      real_time = clock.getElapsedTime().asSeconds();
 
-    //Initialize all variables that change between timekeeping systems
-    float secondsPerFullCycle, secondsPerNewHour, secondsPerNewMinute, secondsPerNewSecond, secondsPerNewTick, startOffset;
-    int numberAmount, linesBetweenNumbers;
-    
-    switch (time_type) {
-      case REG:
-        secondsPerNewTick = 0.0f;
-        secondsPerNewSecond = 1.0f;
-        secondsPerNewMinute = 60.0f;
-        secondsPerNewHour = 3600.0f;
-        secondsPerFullCycle = 43200.0f;
-        startOffset = 0.0f;
-        numberAmount = 12;
-        linesBetweenNumbers = 5;
-        break;
-      case REG_24:
-        secondsPerNewTick = 0.0f;
-        secondsPerNewSecond = 1.0f;
-        secondsPerNewMinute = 60.0f;
-        secondsPerNewHour = 3600.0f;
-        secondsPerFullCycle = 86400.0f;
-        startOffset = PI;
-        numberAmount = 24;
-        linesBetweenNumbers = 5;
-        break;
-      case DEC:
-        secondsPerNewTick = 0.0f;
-        secondsPerNewSecond = 0.864f;
-        secondsPerNewMinute = 86.4f;
-        secondsPerNewHour = 8640.0f;
-        secondsPerFullCycle = 86400.0f;
-        startOffset = 0.0f;
-        numberAmount = 10;
-        linesBetweenNumbers = 10;
-        break;
-      case HEX:
-        secondsPerNewTick = 1.318359375f;
-        secondsPerNewSecond = 21.09375f;
-        secondsPerNewMinute = 337.5f;
-        secondsPerNewHour = 5400.0f;
-        secondsPerFullCycle = 86400.0f;
-        startOffset = 0.0f;
-        numberAmount = 16;
-        linesBetweenNumbers = 4;
-        break;
-      case CRT:
-        secondsPerNewTick = 0.0f;
-        secondsPerNewSecond = 0.32958984375f;
-        secondsPerNewMinute = 21.09375f;
-        secondsPerNewHour = 1350.0f;
-        secondsPerFullCycle = 43200.0f;
-        startOffset = 0.0f;
-        numberAmount = 16;
-        linesBetweenNumbers = 4;
-        break;
-      case DOZ:
-        secondsPerNewTick = 25.0f / 12.0f;
-        secondsPerNewSecond = 25.0f;
-        secondsPerNewMinute = 300.0f;
-        secondsPerNewHour = 3600.0f;
-        secondsPerFullCycle = 43200.0f;
-        startOffset = 0.0f;
-        numberAmount = 12;
-        linesBetweenNumbers = 4;
-        break;
-      case SEN_3:
-        secondsPerNewTick = 0.0f;
-        secondsPerNewSecond = 50.0f / 27.0f;
-        secondsPerNewMinute = 200.0f / 3.0f;
-        secondsPerNewHour = 2400.0f;
-        secondsPerFullCycle = 86400.0f;
-        startOffset = 0.0f;
-        numberAmount = 6;
-        linesBetweenNumbers = 6;
-        break;
-      case SEN_4:
-        secondsPerNewTick = 50.0f / 27.0f;
-        secondsPerNewSecond = 200.0f / 3.0f;
-        secondsPerNewMinute = 2400.0f;
-        secondsPerNewHour = 14400.0f;
-        secondsPerFullCycle = 86400.0f;
-        startOffset = 0.0f;
-        numberAmount = 6;
-        linesBetweenNumbers = 6;
-        break;
-    }
+    //Update the variables used for pausing time
+    if (pause_time)
+      pause_offset = paused_time - real_time;
+    else
+      paused_time = shown_time - time_offset;
+    shown_time = real_time;
 
-    const int lineAmount = numberAmount * linesBetweenNumbers;
-    
+    //Cap the offsets to reduce precision errors
+    time_offset = std::fmodf(time_offset, secondsPerFullCycle);
+    pause_offset = std::fmodf(pause_offset, secondsPerFullCycle);
+
+    //Move the time according to the offset and/or paused time
+    shown_time += time_offset + pause_offset;
+
     //Move the time slightly to create a ticking animation
     if (use_tick)
     {
-      const float secondsPerSmallestTimeStep = secondsPerNewTick == 0.0f ? secondsPerNewSecond : secondsPerNewTick;
-      static const float a = 30.0f;
-      static const float b = 14.0f;
-      const float x = std::fmodf(cur_time, secondsPerSmallestTimeStep);
-      const float y = (1.0f - std::cos(a*x)*std::exp(-b*x)) * secondsPerSmallestTimeStep;
-      cur_time = cur_time - x + y;
+        const float secondsPerSmallestTimeStep = hasTicks ? secondsPerNewTick : secondsPerNewSecond;
+        static const float a = 30.0f;
+        static const float b = 14.0f;
+        const float x = std::fmodf(shown_time, secondsPerSmallestTimeStep);
+        const float y = (1.0f - std::cos(a * x) * std::exp(-b * x)) * secondsPerSmallestTimeStep;
+        shown_time = shown_time - x + y;
     }
 
     //Calculate hand angles
-    const float ticks = (secondsPerNewTick == 0.0f) ? -1.0f : std::fmodf(cur_time, secondsPerNewSecond) * 2.0f * PI / secondsPerNewSecond + startOffset;
-    const float seconds = std::fmod(cur_time, secondsPerNewMinute) * 2.0f * PI / secondsPerNewMinute + startOffset;
-    const float minutes = std::fmod(cur_time, secondsPerNewHour) * 2.0f * PI / secondsPerNewHour + startOffset;
-    const float hours = std::fmod(cur_time, secondsPerFullCycle) * 2.0f * PI / secondsPerFullCycle + startOffset;
+    const float ticks = hasTicks ? std::fmodf(shown_time, secondsPerNewSecond) * 2.0f * PI / secondsPerNewSecond + startOffset : -1.0f;
+    const float seconds = std::fmodf(shown_time, secondsPerNewMinute) * 2.0f * PI / secondsPerNewMinute + startOffset;
+    const float minutes = std::fmodf(shown_time, secondsPerNewHour) * 2.0f * PI / secondsPerNewHour + startOffset;
+    const float hours = std::fmodf(shown_time, secondsPerFullCycle) * 2.0f * PI / secondsPerFullCycle + startOffset;
 
     //Update the clock
     const float ratio = std::max(std::max(std::max(ratioH, ratioM), ratioS), ratioT);
@@ -429,9 +485,9 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     //Update the colors
-    const float r1 = std::sin(cur_time * 0.017f)*0.5f + 0.5f;
-    const float r2 = std::sin(cur_time * 0.011f)*0.5f + 0.5f;
-    const float r3 = std::sin(cur_time * 0.003f)*0.5f + 0.5f;
+    const float r1 = std::sin(real_time * 0.017f)*0.5f + 0.5f;
+    const float r2 = std::sin(real_time * 0.011f)*0.5f + 0.5f;
+    const float r3 = std::sin(real_time * 0.003f)*0.5f + 0.5f;
     for (int i = 0; i < iters; ++i)
     {
       const float a = float(i) / float(iters - 1);
@@ -455,14 +511,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     //Update the fractal
     line_array.clear();
     point_array.clear();
-    switch (clock_type) {
-      case HMST: FractalIter(pt, dir, iters - 1, true, true, true, true); break;
-      case HMS: FractalIter(pt, dir, iters - 1, true, true, true, false); break;
-      case MST: FractalIter(pt, dir, iters - 1, false, true, true, true); break;
-      case HM: FractalIter(pt, dir, iters - 1, true, true, false, false); break;
-      case MS: FractalIter(pt, dir, iters - 1, false, true, true, false); break;
-      case ST: FractalIter(pt, dir, iters - 1, false, false, true, true); break;
-    }
+    FractalIter(pt, dir, iters - 1, show_hours, show_minutes, show_seconds, hasTicks && show_ticks);
 
     //Clear the screen
     window.clear(bgnd_color);
@@ -474,12 +523,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       glLineWidth(2.0f);
       if (!draw_clock)
         window.draw(line_array.data(), line_array.size(), sf::PrimitiveType::Lines);
-      else if (clock_type == ClockType::HMST)
-        window.draw(line_array.data(), line_array.size() - 8, sf::PrimitiveType::Lines);
-      else if (clock_type == ClockType::HMS || clock_type == ClockType::MST)
-        window.draw(line_array.data(), line_array.size() - 6, sf::PrimitiveType::Lines);
       else
-        window.draw(line_array.data(), line_array.size() - 4, sf::PrimitiveType::Lines);
+        window.draw(line_array.data(), line_array.size() - 2ll * handCount, sf::PrimitiveType::Lines);
     }
 
     //Draw the final fractal in a brighter color
@@ -496,7 +541,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       window.draw(clock_face_array1.data(), clock_face_array1.size(), sf::PrimitiveType::Lines);
       glLineWidth(2.0f);
       window.draw(clock_face_array2.data(), clock_face_array2.size(), sf::PrimitiveType::Lines);
-    
+      
       //Draw the clock face numbers
       for (int i = 0; i < numberAmount; ++i)
       {
@@ -519,77 +564,63 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       }
 
       //Draw the clock hands
-      if (clock_type == ClockType::HM)
-      {
-        glLineWidth(4.0f);
-        window.draw(line_array.data() + line_array.size() - 4, 2, sf::PrimitiveType::Lines);
-        glLineWidth(5.0f);
-        window.draw(line_array.data() + line_array.size() - 2, 2, sf::PrimitiveType::Lines);
-      }
-      else if (clock_type == ClockType::HMS)
-      {
-        glLineWidth(2.0f);
-        window.draw(line_array.data() + line_array.size() - 6, 2, sf::PrimitiveType::Lines);
-        glLineWidth(4.0f);
-        window.draw(line_array.data() + line_array.size() - 4, 2, sf::PrimitiveType::Lines);
-        glLineWidth(5.0f);
-        window.draw(line_array.data() + line_array.size() - 2, 2, sf::PrimitiveType::Lines);
-      }
-      else if (clock_type == ClockType::MS)
-      {
-        glLineWidth(2.0f);
-        window.draw(line_array.data() + line_array.size() - 4, 2, sf::PrimitiveType::Lines);
-        glLineWidth(4.0f);
-        window.draw(line_array.data() + line_array.size() - 2, 2, sf::PrimitiveType::Lines);
-      }
-      else if (clock_type == ClockType::HMST)
+      const sf::Vertex* startIndex = line_array.data() + line_array.size() - 2ll * handCount;
+      if (show_ticks)
       {
         glLineWidth(1.0f);
-        window.draw(line_array.data() + line_array.size() - 8, 2, sf::PrimitiveType::Lines);
+        window.draw(startIndex, 2, sf::PrimitiveType::Lines);
+      }
+      if (show_seconds)
+      {
         glLineWidth(2.0f);
-        window.draw(line_array.data() + line_array.size() - 6, 2, sf::PrimitiveType::Lines);
+        window.draw(startIndex + 2ll * (hasTicks && show_ticks), 2, sf::PrimitiveType::Lines);
+      }
+      if (show_minutes)
+      {
         glLineWidth(4.0f);
-        window.draw(line_array.data() + line_array.size() - 4, 2, sf::PrimitiveType::Lines);
+        window.draw(startIndex + 2ll * (hasTicks && show_ticks) + 2ll * show_seconds, 2, sf::PrimitiveType::Lines);
+      }
+      if (show_hours)
+      {
         glLineWidth(5.0f);
-        window.draw(line_array.data() + line_array.size() - 2, 2, sf::PrimitiveType::Lines);
-      }
-      else if (clock_type == ClockType::MST)
-      {
-        glLineWidth(1.0f);
-        window.draw(line_array.data() + line_array.size() - 6, 2, sf::PrimitiveType::Lines);
-        glLineWidth(2.0f);
-        window.draw(line_array.data() + line_array.size() - 4, 2, sf::PrimitiveType::Lines);
-        glLineWidth(4.0f);
-        window.draw(line_array.data() + line_array.size() - 2, 2, sf::PrimitiveType::Lines);
-      }
-      else if (clock_type == ClockType::ST)
-      {
-        glLineWidth(1.0f);
-        window.draw(line_array.data() + line_array.size() - 4, 2, sf::PrimitiveType::Lines);
-        glLineWidth(2.0f);
-        window.draw(line_array.data() + line_array.size() - 2, 2, sf::PrimitiveType::Lines);
+        window.draw(startIndex + 2ll * (hasTicks && show_ticks) + 2ll * show_seconds + 2ll * show_minutes, 2, sf::PrimitiveType::Lines);
       }
     }
 
     //Draw UI elements
     if (show_shortcuts)
     {
-        clock_type_text.setString(clock_type_name[clock_type]);
-        window.draw(clock_type_text);
-        time_type_text.setString(time_type_name[time_type]);
-        window.draw(time_type_text);
-        realtime_text.setString(realtime_name[use_realtime ? 1 : 0]);
-        window.draw(realtime_text);
-        tick_text.setString(tick_name[use_tick ? 1 : 0]);
-        window.draw(tick_text);
-        draw_branches_text.setString(draw_branches_name[draw_branches ? 1 : 0]);
-        window.draw(draw_branches_text);
-        draw_clock_text.setString(draw_clock_name[draw_clock ? 1 : 0]);
-        window.draw(draw_clock_text);
-        toggle_fullscreen_text.setString(toggle_fullscreen_name[is_fullscreen ? 1 : 0]);
-        window.draw(toggle_fullscreen_text);
-        show_shortcuts_text.setString(show_shortcuts_name);
-        window.draw(show_shortcuts_text);
+      show_shortcuts_text.setString(show_shortcuts_name);
+      window.draw(show_shortcuts_text);
+      real_time_text.setString(real_time_name[2 * use_real_time + (time_offset != 0.0f || pause_offset != 0.0f)]);
+      window.draw(real_time_text);
+      tick_text.setString(tick_name[use_tick]);
+      window.draw(tick_text);
+      draw_branches_text.setString(draw_branches_name[draw_branches]);
+      window.draw(draw_branches_text);
+      draw_clock_text.setString(draw_clock_name[draw_clock]);
+      window.draw(draw_clock_text);
+      toggle_fullscreen_text.setString(toggle_fullscreen_name[is_fullscreen]);
+      window.draw(toggle_fullscreen_text);
+
+      time_type_text.setString(time_type_name[time_type]);
+      time_type_text.setPosition(screenSize.width - time_type_text.getGlobalBounds().width - 10, 10);
+      window.draw(time_type_text);
+      show_hands_text.setString(show_hands_name[hasTicks]);
+      show_hands_text.setPosition(screenSize.width - show_hands_text.getGlobalBounds().width - 10, 40);
+      window.draw(show_hands_text);
+      time_offset_text.setString(time_offset_name[time_offset_mode]);
+      time_offset_text.setPosition(screenSize.width - time_offset_text.getGlobalBounds().width - 10, 70);
+      window.draw(time_offset_text);
+      change_offset_text.setString(change_offset_name);
+      change_offset_text.setPosition(screenSize.width - change_offset_text.getGlobalBounds().width - 10, 100);
+      window.draw(change_offset_text);
+      reset_offset_text.setString(reset_offset_name);
+      reset_offset_text.setPosition(screenSize.width - reset_offset_text.getGlobalBounds().width - 10, 130);
+      window.draw(reset_offset_text);
+      pause_time_text.setString(pause_time_name[pause_time]);
+      pause_time_text.setPosition(screenSize.width - pause_time_text.getGlobalBounds().width - 10, 160);
+      window.draw(pause_time_text);
     }
 
     //Flip the screen buffer
