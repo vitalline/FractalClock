@@ -16,7 +16,8 @@ enum TimeType {
   REG, REG_24, SEN_3, SEN_4, DEC, DOZ, HEX, CRT, TIME_NUM
 };
 static const float time_offset_modes[] = {
-  5.0f, 60.0f, 300.0f, 3600.0f
+  5.0f, 60.0f, 300.0f, 3600.0f,
+  1.0f, 0.2f, 0.05f, 0.01f
 };
 static const char* show_hands_name[] = {
   "[1-3] Show/Hide clock hands",
@@ -37,8 +38,12 @@ static const char* time_offset_name[] = {
   "[+/-] Offset time by 1 minute",
   "[+/-] Offset time by 5 minutes",
   "[+/-] Offset time by 1 hour",
+  "[+/-] Offset time by 1 second",
+  "[+/-] Offset time by 200 ms",
+  "[+/-] Offset time by 50 ms",
+  "[+/-] Offset time by 10 ms",
 };
-static const char* change_offset_name = "[Shift/Ctrl] Offset faster";
+static const char* change_offset_name = "[Shift/Ctrl/Alt] Offset step";
 static const char* reset_offset_name = "[0] Reset time offset";
 static const char* pause_time_name[] = {
   "[P] Pause time",
@@ -250,11 +255,11 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       }
       else if (event.type == sf::Event::KeyReleased)
       {
-        time_offset_mode = 1 * event.key.shift + 2 * event.key.control;
+        time_offset_mode = 1 * event.key.shift + 2 * event.key.control + 4 * event.key.alt;
       }
       else if (event.type == sf::Event::KeyPressed)
       {
-        time_offset_mode = 1 * event.key.shift + 2 * event.key.control;
+        time_offset_mode = 1 * event.key.shift + 2 * event.key.control + 4 * event.key.alt;
         #pragma warning(disable:26812)
         const sf::Keyboard::Key keycode = event.key.code;
         #pragma warning(default:26812)
