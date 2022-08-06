@@ -448,21 +448,22 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     shown_time += time_offset + pause_offset;
 
     //Move the time slightly to create a ticking animation
+    float animated_time = shown_time;
     if (use_tick)
     {
         const float secondsPerSmallestTimeStep = hasTicks ? secondsPerNewTick : secondsPerNewSecond;
         static const float a = 30.0f;
         static const float b = 14.0f;
-        const float x = std::fmodf(shown_time, secondsPerSmallestTimeStep);
+        const float x = std::fmodf(animated_time, secondsPerSmallestTimeStep);
         const float y = (1.0f - std::cos(a * x) * std::exp(-b * x)) * secondsPerSmallestTimeStep;
-        shown_time = shown_time - x + y;
+        animated_time = animated_time - x + y;
     }
 
     //Calculate hand angles
-    const float ticks = hasTicks ? std::fmodf(shown_time, secondsPerNewSecond) * 2.0f * PI / secondsPerNewSecond + startOffset : -1.0f;
-    const float seconds = std::fmodf(shown_time, secondsPerNewMinute) * 2.0f * PI / secondsPerNewMinute + startOffset;
-    const float minutes = std::fmodf(shown_time, secondsPerNewHour) * 2.0f * PI / secondsPerNewHour + startOffset;
-    const float hours = std::fmodf(shown_time, secondsPerFullCycle) * 2.0f * PI / secondsPerFullCycle + startOffset;
+    const float ticks = hasTicks ? std::fmodf(animated_time, secondsPerNewSecond) * 2.0f * PI / secondsPerNewSecond + startOffset : -1.0f;
+    const float seconds = std::fmodf(animated_time, secondsPerNewMinute) * 2.0f * PI / secondsPerNewMinute + startOffset;
+    const float minutes = std::fmodf(animated_time, secondsPerNewHour) * 2.0f * PI / secondsPerNewHour + startOffset;
+    const float hours = std::fmodf(animated_time, secondsPerFullCycle) * 2.0f * PI / secondsPerFullCycle + startOffset;
 
     //Update the clock
     const float ratio = std::max(std::max(std::max(ratioH, ratioM), ratioS), ratioT);
