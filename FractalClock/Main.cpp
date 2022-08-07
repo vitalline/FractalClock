@@ -44,16 +44,21 @@ static const char* time_offset_name[] = {
   "[+/-] Offset time by 10 ms",
 };
 static const char* change_offset_name = "[Shift/Ctrl/Alt] Offset step";
-static const char* reset_offset_name = "[0] Reset time offset";
+static const char* reset_offset_name[] = {
+  "[0] Reset timer",
+  "[0] Reset time offset",
+};
 static const char* pause_time_name[] = {
   "[P] Pause time",
   "[P] Resume time",
 };
 static const char* real_time_name[] = {
   "[R] Timer",
-  "[R] Timer (offset)",
+  "[R] Timer", //Intentionally not using "Timer (offset)" here because the time being offset only really matters for real-time mode
+  "[R] Timer (paused)",
   "[R] Real-time",
   "[R] Real-time (offset)",
+  "[R] Real-time (paused)",
 };
 static const char* tick_name[] = {
   "[T] Smooth time",
@@ -88,6 +93,7 @@ static float paused_time = 0.0f;
 static float pause_offset = 0.0f;
 static float time_offset = 0.0f;
 static int time_offset_mode = 0;
+static bool timer_is_stopped = false;
 static sf::Color color_scheme[max_iters];
 static bool toggle_fullscreen = false;
 
@@ -278,9 +284,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
           show_ticks = !show_ticks;
         else if (keycode == sf::Keyboard::Num0 || keycode == sf::Keyboard::Numpad0)
         {
-          paused_time = real_time;
-          time_offset = 0;
-          pause_offset = 0;
+          paused_time = use_real_time ? real_time : 0.0f;
+          time_offset = 0.0f;
+          pause_offset = 0.0f;
+          clock.restart();
         }
         else if (keycode == sf::Keyboard::Equal || keycode == sf::Keyboard::Add)
           time_offset += time_offset_modes[time_offset_mode];
@@ -295,9 +302,9 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         else if (keycode == sf::Keyboard::R)
         {
           use_real_time = !use_real_time;
-          pause_time = false;
-          time_offset = 0;
-          pause_offset = 0;
+          paused_time = use_real_time ? real_time : 0.0f;
+          time_offset = 0.0f;
+          pause_offset = 0.0f;
           clock.restart();
         }
         else if (keycode == sf::Keyboard::T)
@@ -417,36 +424,38 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (handCount == 4)
       iters = max_iters - 6;
 
-    //Get the time
-    real_time = 0.0f;
-    if (use_real_time)
-    {
-      FILETIME fileTime;
-      SYSTEMTIME systemTime;
-      SYSTEMTIME localTime;
-      GetSystemTimeAsFileTime(&fileTime);
-      FileTimeToSystemTime(&fileTime, &systemTime);
-      SystemTimeToTzSpecificLocalTime(NULL, &systemTime, &localTime);
-      real_time = float(localTime.wMilliseconds) / 1000.0f;
-      real_time += float(localTime.wSecond);
-      real_time += float(localTime.wMinute) * 60.0f;
-      real_time += float(localTime.wHour) * 3600.0f;
+    //Get the system time
+    FILETIME fileTime;
+    SYSTEMTIME systemTime;
+    SYSTEMTIME localTime;
+    GetSystemTimeAsFileTime(&fileTime);
+    FileTimeToSystemTime(&fileTime, &systemTime);
+    SystemTimeToTzSpecificLocalTime(NULL, &systemTime, &localTime);
+    real_time = float(localTime.wMilliseconds) / 1000.0f;
+    real_time += float(localTime.wSecond);
+    real_time += float(localTime.wMinute) * 60.0f;
+    real_time += float(localTime.wHour) * 3600.0f;
+
+    //Get the time without accounting for time/pause offsets
+    float current_time = use_real_time ? real_time : clock.getElapsedTime().asSeconds();
+    timer_is_stopped = (use_real_time || !timer_is_stopped) ? false : pause_time;
+    if (timer_is_stopped) {
+        current_time = 0.0f;
+        clock.restart();
     }
-    else
-      real_time = clock.getElapsedTime().asSeconds();
 
     //Update the variables used for pausing time
     if (pause_time)
-      pause_offset = paused_time - real_time;
+      pause_offset = paused_time - current_time;
     else
       paused_time = shown_time - time_offset;
-    shown_time = real_time;
+    shown_time = current_time;
 
     //Cap the offsets to reduce precision errors
     time_offset = std::fmodf(time_offset, secondsPerFullCycle);
     pause_offset = std::fmodf(pause_offset, secondsPerFullCycle);
 
-    //Move the time according to the offset and/or paused time
+    //Change the time according to the time/pause offsets
     shown_time += time_offset + pause_offset;
 
     //Move the time slightly to create a ticking animation
@@ -600,7 +609,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     {
       show_shortcuts_text.setString(show_shortcuts_name);
       window.draw(show_shortcuts_text);
-      real_time_text.setString(real_time_name[2 * use_real_time + (time_offset != 0.0f || pause_offset != 0.0f)]);
+      real_time_text.setString(real_time_name[3 * use_real_time + (1 + pause_time) * (time_offset != 0.0f || pause_offset != 0.0f || pause_time)]);
       window.draw(real_time_text);
       tick_text.setString(tick_name[use_tick]);
       window.draw(tick_text);
@@ -623,7 +632,7 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       change_offset_text.setString(change_offset_name);
       change_offset_text.setPosition(screenSize.width - change_offset_text.getGlobalBounds().width - 10, 100);
       window.draw(change_offset_text);
-      reset_offset_text.setString(reset_offset_name);
+      reset_offset_text.setString(reset_offset_name[use_real_time]);
       reset_offset_text.setPosition(screenSize.width - reset_offset_text.getGlobalBounds().width - 10, 130);
       window.draw(reset_offset_text);
       pause_time_text.setString(pause_time_name[pause_time]);
