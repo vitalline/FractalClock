@@ -24,14 +24,14 @@ static const char* show_hands_name[] = {
   "[1-4] Show/Hide clock hands",
 };
 static const char* time_type_name[] = {
-  "[M] Regular clock",
-  "[M] 24-hour clock",
-  "[M] Heximal clock",
-  "[M] Heximal clock (4 hands)",
-  "[M] Decimal clock",
-  "[M] Dozenal clock",
-  "[M] Hexadecimal clock",
-  "[M] Creata Standard Time",
+  "[M/N] Regular clock",
+  "[M/N] 24-hour clock",
+  "[M/N] Heximal clock",
+  "[M/N] Heximal clock (4 hands)",
+  "[M/N] Decimal clock",
+  "[M/N] Dozenal clock",
+  "[M/N] Hexadecimal clock",
+  "[M/N] Creata Standard Time",
 };
 static const char* time_offset_name[] = {
   "[+/-] Offset time by 5 seconds",
@@ -71,7 +71,7 @@ static const char* toggle_fullscreen_name[] = {
   "[F11] Full screen",
   "[F11] Exit full screen",
 };
-static const char* show_shortcuts_name = "[K] Hide keyboard shortcuts";
+static const char* show_shortcuts_name = "[K] Hide shortcuts";
 
 static std::vector<sf::Vertex> line_array;
 static std::vector<sf::Vertex> point_array;
@@ -290,6 +290,8 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
           pause_time = !pause_time;
         else if (keycode == sf::Keyboard::M)
           time_type = TimeType((time_type + 1) % TimeType::TIME_NUM);
+        else if (keycode == sf::Keyboard::N)
+          time_type = TimeType((time_type + TimeType::TIME_NUM - 1) % TimeType::TIME_NUM);
         else if (keycode == sf::Keyboard::R)
         {
           use_real_time = !use_real_time;
