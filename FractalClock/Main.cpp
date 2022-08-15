@@ -373,10 +373,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
       break;
     case CRT:
       secondsPerNewTick = 0.0f;
-      secondsPerNewSecond = 0.32958984375f;
-      secondsPerNewMinute = 21.09375f;
-      secondsPerNewHour = 1350.0f;
-      secondsPerFullCycle = 43200.0f;
+      secondsPerNewSecond = 1.318359375f;
+      secondsPerNewMinute = 84.375f;
+      secondsPerNewHour = 5400.0f;
+      secondsPerFullCycle = 86400.0f;
       startOffset = 0.0f;
       numberAmount = 16;
       linesBetweenNumbers = 4;
